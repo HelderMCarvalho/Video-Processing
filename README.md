@@ -1,2 +1,6 @@
-# TP2-VC
-Trabalho Prático 2 de VC
+# Computer Vision Video Processing
+Identify road signs by showing them to the Webcam.
+The signs are in the folder "Signs".
+
+## Run
+Use Cmake
