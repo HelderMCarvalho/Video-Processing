@@ -52,6 +52,8 @@ int vc_write_image(char *filename, IVC *image);
 // FUNCTIONS GRAY
 int vc_gray_negative(IVC *src_dst);
 
+int vc_gray_to_rgb(IVC *src, IVC *dst);
+
 int vc_scale_gray_to_rgb(IVC *src, IVC *dst);
 
 int vc_gray_to_binary(IVC *src, IVC *dst, int threshold);
@@ -63,6 +65,10 @@ int vc_gray_to_binary_neighborhood_midpoint(IVC *src, IVC *dst, int kernel);
 int vc_gray_histogram_show(IVC *src, IVC *dst);
 
 int vc_gray_histogram_equalization(IVC *src, IVC *dst);
+
+int vc_gray_edge_prewitt(IVC *src, IVC *dst, float threshold);
+
+int vc_gray_edge_sobel(IVC *src, IVC *dst, float threshold);
 
 int vc_gray_lowpass_mean_filter(IVC *src, IVC *dst, int kernel_size);
 
@@ -77,6 +83,10 @@ int vc_gray_highpass_filter_enhance(IVC *src, IVC *dst, int mask_type, int gain)
 // FUNCTIONS RGB
 int vc_rgb_negative(IVC *src_dst);
 
+int vc_rgb_darken(IVC *src_dst, float value);
+
+int vc_rgb_lighten(IVC *src_dst, float value);
+
 int vc_rgb_get_red_gray(IVC *src_dst);
 
 int vc_rgb_get_green_gray(IVC *src_dst);
@@ -86,6 +96,12 @@ int vc_rgb_get_blue_gray(IVC *src_dst);
 int vc_rgb_to_gray(IVC *src, IVC *dst);
 
 int vc_rgb_to_hsv(IVC *src, IVC *dst);
+
+int vc_rgb_draw_center_of_mass(IVC *src_dst, OVC *blob);
+
+int vc_rgb_draw_bounding_box(IVC *src_dst, OVC *blob);
+
+int vc_rgb_extract_binary(IVC *src, IVC *mask, IVC *dst);
 
 // FUNCTIONS HSV
 int vc_hsv_segmentation(IVC *src, IVC *dst, int h_min, int h_max, int s_min, int s_max, int v_min, int v_max);
@@ -103,6 +119,4 @@ OVC *vc_binary_blob_labelling(IVC *src, IVC *dst, int *n_labels);
 
 int vc_binary_blob_info(IVC *src, OVC *blobs, int n_blobs);
 
-int vc_gray_edge_prewitt(IVC *src, IVC *dst, float threshold);
-
-int vc_gray_edge_sobel(IVC *src, IVC *dst, float threshold);
+int vc_binary_contour_fill(IVC *src, IVC *dst);
