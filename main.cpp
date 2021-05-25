@@ -27,7 +27,7 @@ int main() {
 
 
     // Open Webcam video capture (0 is the camera Id)
-    capture.open(1, cv::CAP_DSHOW);
+    capture.open(0, cv::CAP_DSHOW);
     // capture.set(cv::CAP_PROP_FRAME_WIDTH, WIDTH);
     // capture.set(cv::CAP_PROP_FRAME_HEIGHT, HEIGHT);
 
@@ -47,7 +47,7 @@ int main() {
     cv::namedWindow("VC - Video", cv::WINDOW_AUTOSIZE);
     cv::namedWindow("VC - Video - DEV", cv::WINDOW_AUTOSIZE);
 
-    cv::Mat frame, frameCopy, segmentedFrame;
+    cv::Mat frame, frameCopy, segmentedFrame, segmentedFrameD, segmentedRedFrame;
 
     // Images var to use in processing
     bool no_sign = true, blue_sign = false, red_sign = false;
@@ -164,6 +164,39 @@ int main() {
             }
         }
 
+        if (no_sign || red_sign) {
+            no_sign = false;
+            blue_sign = false;
+            red_sign = true;
+
+            // Segment HSV Image by Red color
+            cv::inRange(frameCopy, cv::Scalar(0, 90, 90), cv::Scalar(15, 255, 255), segmentedFrame); // STOP
+            cv::inRange(frameCopy, cv::Scalar(155, 90, 90), cv::Scalar(180, 255, 255), segmentedFrameD); // Forbidden
+            segmentedRedFrame = max(segmentedFrame, segmentedFrameD);
+
+            memcpy(auxGrayImgs[0]->data, segmentedRedFrame.data, videoFrameSize1Ch);
+
+            // Reduce noise
+            vc_binary_close(auxGrayImgs[0], auxGrayImgs[1], 5, 5);
+
+            // Fill object
+            vc_binary_contour_fill(auxGrayImgs[1], auxGrayImgs[2]);
+
+            // Identify blobs
+            blobs = vc_binary_blob_labelling(auxGrayImgs[2], auxGrayImgs[3], &n_labels);
+            vc_binary_blob_info(auxGrayImgs[3], blobs, n_labels);
+            for (int i = 0; i < n_labels; i++) {
+                if (blobs[i].area > 5000) {
+                    no_sign = false;
+                    blue_sign = false;
+                    red_sign = true;
+
+                    // Draw center of mass and bounding box
+                    vc_rgb_draw_center_of_mass(startRGBImg, &blobs[i]);
+                    vc_rgb_draw_bounding_box(startRGBImg, &blobs[i]);
+                }
+            }
+        }
 
 
 
@@ -180,9 +213,9 @@ int main() {
             cv::inRange(frameCopy, cv::Scalar(0, 0, 150), cv::Scalar(180, 76, 255), segmentedFrame);
             memcpy(auxGrayImgs[4]->data, segmentedFrame.data, videoFrameSize1Ch);
 
+            int area_left = 0, area_right = 0;
             for (int i = 0; i < n_labels; i++) {
                 if (blobs[i].area > 5000) {
-                    int area_left = 0, area_right = 0;
 
                     // Count white pixels in the left side of the blob
                     for (int y = blobs[i].y; y < (blobs[i].height + blobs[i].y); y++) {
@@ -203,17 +236,49 @@ int main() {
                             }
                         }
                     }
-
-                    if (area_left > area_right) {
-                        str = std::string("Obrigatorio virar a esquerda!");
-                    } else {
-                        str = std::string("Obrigatorio virar a direita!");
-                    }
-                    cv::putText(frame, str, cv::Point(20, 75), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 0, 0), 2);
-                    cv::putText(frame, str, cv::Point(20, 75), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(255, 255, 255),
-                                1);
                 }
             }
+
+            if (area_left > area_right) {
+                str = std::string("Turn left!");
+            } else {
+                str = std::string("Turn right!");
+            }
+            cv::putText(frame, str, cv::Point(20, 75), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 0, 0), 2);
+            cv::putText(frame, str, cv::Point(20, 75), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(255, 255, 255),
+                        1);
+        } else if (red_sign) {
+            // Segment HSV Image by White color
+            cv::inRange(frameCopy, cv::Scalar(0, 0, 150), cv::Scalar(180, 76, 255), segmentedFrame);
+            memcpy(auxGrayImgs[4]->data, segmentedFrame.data, videoFrameSize1Ch);
+
+            // Counts the Red pixels near the top side of the bounding box. Calculates the percentage of Red pixels
+            // against the top width of the bounding box.
+            int countRed = 0;
+            float percentage = 0.f;
+            for (int i = 0; i < n_labels; i++) {
+                if (blobs[i].area > 5000) {
+                    for (int x = blobs[i].x; x < blobs[i].x + blobs[i].width; x++) {
+                        long int pos = (blobs[i].y + 5) * auxGrayImgs[0]->bytesperline + x * auxGrayImgs[0]->channels;
+                        if (auxGrayImgs[0]->data[pos] == 255) {
+                            countRed++;
+                        }
+                    }
+                    percentage = (float) countRed / (float) blobs[i].width;
+                }
+            }
+
+            // If the percentage is above 40% occupation, then is a STOP sign, else is Forbidden
+            // TODO: Melhorar a distinção dos sinais vermelhos, em  vez de usar a porcentagem de pixeis vermelhos perto
+            //  da borda da bounding box, contar os blobs dentro do sinal
+            if (percentage > 0.4) {
+                str = std::string("STOP");
+            } else if (percentage != 0.f) {
+                str = std::string("Forbidden");
+            }
+            cv::putText(frame, str, cv::Point(20, 75), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 0, 0), 2);
+            cv::putText(frame, str, cv::Point(20, 75), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(255, 255, 255),
+                        1);
         }
 
         // Every 10 frames reset the sign indicator. This allows to have more performance for 10 frames in a row.
@@ -239,7 +304,7 @@ int main() {
 
     // Free all memory
     vc_image_free(startRGBImg);
-    vc_image_free(endRGBImg);
+    // vc_image_free(endRGBImg);
     for (int auxRGBImg = 0; auxRGBImg < totalAuxRGBImgs; auxRGBImg++) {
         vc_image_free(auxRGBImgs[auxRGBImg]);
     }
