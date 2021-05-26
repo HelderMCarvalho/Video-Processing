@@ -80,6 +80,8 @@ int vc_gray_highpass_filter(IVC *src, IVC *dst, int mask_type);
 
 int vc_gray_highpass_filter_enhance(IVC *src, IVC *dst, int mask_type, int gain);
 
+int vc_gray_extract_binary(IVC *src, IVC *mask, IVC *dst);
+
 // FUNCTIONS RGB
 int vc_rgb_negative(IVC *src_dst);
 
